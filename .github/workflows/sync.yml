@@ -24,7 +24,7 @@ jobs:
           sed -i "s/'//g" direct.yaml
           # 核心修正：确保所有以 - 开头的行都有且只有 2 个空格的缩进
           # 同时也清理掉可能存在的行尾空格
-          sed -i 's/^[[:space:]]*-[[:space:]]*/  - /g' direct.yaml
+          sed -i 's/^[[:space:]]*-[[:space:]]*/    - /g' direct.yaml
           # 确保 payload: 这一行顶格写（左侧无空格）
           sed -i 's/^[[:space:]]*payload:/payload:/g' direct.yaml
 
