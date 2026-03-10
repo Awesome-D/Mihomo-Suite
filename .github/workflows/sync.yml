@@ -3,12 +3,11 @@ name: Sync Ruleset
 on:
   schedule:
     - cron: '0 2 * * *' # 每天凌晨 2 点自动运行
-  workflow_dispatch:      # 允许你在 Actions 页面手动点击运行
+  workflow_dispatch:      # 允许手动点击运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 授予脚本写入仓库的权限
     permissions:
       contents: write
       
@@ -16,21 +15,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Process File
+      - name: Convert YAML to Classical List
         run: |
-          # 下载原始文件
-          curl -sSL https://raw.githubusercontent.com/Loyalsoldier/clash-rules/refs/heads/release/direct.txt -o direct.yaml
-          # 删除单引号
-          sed -i "s/'//g" direct.yaml
-          # 核心修正：确保所有以 - 开头的行都有且只有 2 个空格的缩进
-          # 同时也清理掉可能存在的行尾空格
-          sed -i 's/^[[:space:]]*-[[:space:]]*/    - /g' direct.yaml
-          # 确保 payload: 这一行顶格写（左侧无空格）
-          sed -i 's/^[[:space:]]*payload:/payload:/g' direct.yaml
+          # 1. 获取原始数据并流式处理
+          # 2. 移除 payload 标记、单引号、行首横杠和空格
+          # 3. 通过 awk 识别 +. 转换为 DOMAIN-SUFFIX，其余转换为 DOMAIN
+          
+          curl -sSL https://raw.githubusercontent.com/Loyalsoldier/clash-rules/refs/heads/release/direct.txt | \
+          sed "s/'//g; s/^[[:space:]]*- //g; /payload:/d; /^$/d" | \
+          awk '{
+            if ($0 ~ /^\+\./) {
+              # 如果是 +. 开头，去掉 +. 并加 DOMAIN-SUFFIX
+              sub(/^\+\./, "", $0);
+              print "DOMAIN-SUFFIX," $0
+            } else {
+              # 普通域名加 DOMAIN
+              print "DOMAIN," $0
+            }
+          }' > direct.list
 
       - name: Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add direct.yaml
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update rules" && git push)
+          git add direct.list
+          # 只有在内容有变化时才提交
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: convert to classical list" && git push)
