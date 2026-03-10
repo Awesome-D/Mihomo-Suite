@@ -1,0 +1,31 @@
+name: Sync Ruleset
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天凌晨 2 点自动运行
+  workflow_dispatch:      # 允许你在 Actions 页面手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 授予脚本写入仓库的权限
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Process File
+        run: |
+          # 下载原始文件
+          curl -sSL https://raw.githubusercontent.com/Loyalsoldier/clash-rules/refs/heads/release/direct.txt -o direct.yaml
+          # 删除单引号
+          sed -i "s/'//g" direct.yaml
+
+      - name: Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add direct.yaml
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update rules" && git push)
